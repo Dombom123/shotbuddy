@@ -94,6 +94,7 @@
                     closeCreateProjectModal();
                     showMainInterface();
                     loadShots();
+                    loadRecentProjects();
                     showNotification(`Created project "${result.data.name}"`);
                 } else {
                     showNotification(result.error || 'Failed to create project', 'error');
@@ -664,6 +665,7 @@ async function renameShot(oldName, newName) {
                     currentProject = result.data;
                     showMainInterface();
                     loadShots();
+                    loadRecentProjects();
                     showNotification(`Opened project "${result.data.name}"`);
                 } else {
                     showNotification(result.error || 'Failed to open project', 'error');
