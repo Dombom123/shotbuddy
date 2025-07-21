@@ -158,9 +158,16 @@ def create_project():
         project_manager = current_app.config['PROJECT_MANAGER']
         data = request.get_json()
         project_name = data.get("name", "Untitled Project")
-        selected_folder = data.get("path", ".")
+        selected_folder = data.get("path") or ""
+
+        from app.config.constants import PROJECTS_ROOT
         from app.utils import sanitize_path
-        folder_path = sanitize_path(selected_folder).resolve()
+
+        if not selected_folder.strip():
+            # Default to configured projects root when client sends empty path.
+            folder_path = Path(PROJECTS_ROOT).resolve()
+        else:
+            folder_path = sanitize_path(selected_folder).resolve()
 
         project_dir = folder_path / project_name
         project_dir.mkdir(parents=True, exist_ok=True)
