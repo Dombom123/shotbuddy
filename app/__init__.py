@@ -2,9 +2,17 @@ from flask import Flask
 from flask_cors import CORS
 from app.services.project_manager import ProjectManager
 import logging
+import os
 
 def create_app():
-    app = Flask(__name__)
+    # Get the directory where this __init__.py file is located
+    app_dir = os.path.dirname(os.path.abspath(__file__))
+    static_folder = os.path.join(app_dir, 'static')
+    
+    app = Flask(__name__, 
+                static_folder=static_folder,
+                static_url_path='/static')
+    
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",

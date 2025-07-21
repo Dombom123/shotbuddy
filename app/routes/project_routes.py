@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, render_template, current_app
+from flask import Blueprint, request, jsonify, render_template, current_app, send_from_directory
 from pathlib import Path
 import json
 from datetime import datetime
@@ -14,6 +14,11 @@ project_bp = Blueprint('project', __name__)
 @project_bp.route("/")
 def index():
     return render_template("index.html")
+
+@project_bp.route("/debug/static/<path:filename>")
+def debug_static(filename):
+    """Debug route to test static file serving"""
+    return send_from_directory('static', filename)
 
 @project_bp.route("/api/project/current")
 def get_current_project():
