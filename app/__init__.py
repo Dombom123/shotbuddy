@@ -61,8 +61,8 @@ def create_app():
 
     # Centralised storage service (local_root comes from SHOTBUDDY_UPLOAD_FOLDER env).
     from app.services.storage_service import StorageService
-
-    storage_root = app.config['UPLOAD_FOLDER']  # already resolved above
+    from app.config.constants import PROJECTS_ROOT
+    storage_root = str(PROJECTS_ROOT)
     app.config['STORAGE_SERVICE'] = StorageService(storage_root)
 
     from app.routes.project_routes import project_bp
