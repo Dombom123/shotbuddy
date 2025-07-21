@@ -5,13 +5,13 @@ import logging
 import os
 
 def create_app():
-    # Get the directory where this __init__.py file is located
-    app_dir = os.path.dirname(os.path.abspath(__file__))
-    static_folder = os.path.join(app_dir, 'static')
-    
     app = Flask(__name__, 
-                static_folder=static_folder,
+                static_folder='static',
                 static_url_path='/static')
+    
+    # Configure file upload limits for remote server
+    app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB max file size
+    app.config['UPLOAD_FOLDER'] = os.environ.get('SHOTBUDDY_UPLOAD_FOLDER', 'uploads')
     
     logging.basicConfig(
         level=logging.INFO,
