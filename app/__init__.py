@@ -30,4 +30,8 @@ def create_app():
     app.register_blueprint(project_bp, url_prefix='/')
     app.register_blueprint(shot_bp, url_prefix="/api/shots")
 
+    @app.route("/health")
+    def health():
+        return {"ok": True}, 200
+
     return app
