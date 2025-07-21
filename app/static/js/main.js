@@ -94,7 +94,7 @@
                     closeCreateProjectModal();
                     showMainInterface();
                     loadShots();
-                    loadProjectsList();
+                    refreshUI();
                     showNotification(`Created project "${result.data.name}"`);
                 } else {
                     showNotification(result.error || 'Failed to create project', 'error');
@@ -625,7 +625,7 @@ async function renameShot(oldName, newName) {
                         li.style.padding = '6px 0';
                         li.textContent = project.name;
                         li.addEventListener('click', () => {
-                            openRecentProject(project.path);
+                            switchProject(project.path);
                         });
                         list.appendChild(li);
 
@@ -644,7 +644,7 @@ async function renameShot(oldName, newName) {
                         selector.style.display = 'block';
                         selector.onchange = function() {
                             const path = selector.value;
-                            if (path) openRecentProject(path);
+                            if (path) switchProject(path);
                         };
                     }
                 }
@@ -665,7 +665,7 @@ async function renameShot(oldName, newName) {
                     currentProject = result.data;
                     showMainInterface();
                     loadShots();
-                    loadProjectsList();
+                    refreshUI();
                     showNotification(`Opened project "${result.data.name}"`);
                 } else {
                     showNotification(result.error || 'Failed to open project', 'error');
@@ -673,5 +673,62 @@ async function renameShot(oldName, newName) {
             } catch (e) {
                 console.error('Failed to open project', e);
                 showNotification('Failed to open project', 'error');
+            }
+        }
+
+        // ---------------------------------------------------------------------------
+        //  UI state consistency helper
+        // ---------------------------------------------------------------------------
+        async function refreshUI() {
+            // Refresh project list and selector
+            await loadProjectsList();
+            
+            // Update header if we have a current project
+            if (currentProject) {
+                document.getElementById('project-title').textContent = currentProject.name;
+                
+                // Update selector to show current project
+                const selector = document.getElementById('project-selector');
+                if (selector) {
+                    for (let option of selector.options) {
+                        if (option.value === currentProject.path) {
+                            option.selected = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        // ---------------------------------------------------------------------------
+        //  Improved project switching with state cleanup
+        // ---------------------------------------------------------------------------
+        async function switchProject(projectPath) {
+            try {
+                // Clear current state
+                shots = [];
+                document.getElementById('shot-list').innerHTML = '';
+                document.getElementById('loading').style.display = 'block';
+                document.getElementById('shot-grid').style.display = 'none';
+                
+                // Open the new project
+                const response = await fetch('/api/project/open', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path: projectPath })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    currentProject = result.data;
+                    await refreshUI();
+                    await loadShots();
+                    showNotification(`Switched to project "${result.data.name}"`);
+                } else {
+                    showNotification(result.error || 'Failed to switch project', 'error');
+                }
+            } catch (error) {
+                console.error('Error switching project:', error);
+                showNotification('Error switching project', 'error');
             }
         }

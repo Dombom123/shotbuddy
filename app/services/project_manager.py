@@ -94,7 +94,16 @@ class ProjectManager:
             return None
         from app.utils import sanitize_path
         project_path = sanitize_path(project_path).resolve()
+        
+        # Validate project path exists and contains project.json
         project_file = project_path / 'project.json'
+        
+        if not project_path.exists():
+            logger.error("Current project path does not exist: %s", project_path)
+            # Clear invalid current project
+            self.projects['current_project'] = None
+            self.save_projects()
+            return None
 
         if project_file.exists():
             with project_file.open('r') as f:
@@ -103,6 +112,9 @@ class ProjectManager:
         for recent in self.projects.get('recent_projects', []):
             from app.utils import sanitize_path
             recent_path = sanitize_path(recent).resolve()
+            if not recent_path.exists():
+                logger.warning("Recent project path does not exist: %s", recent_path)
+                continue
             fallback = recent_path / 'project.json'
             if fallback.exists():
                 logger.info("Falling back to recent project: %s", recent_path)

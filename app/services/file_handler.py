@@ -19,6 +19,11 @@ THUMBNAIL_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 class FileHandler:
     def __init__(self, project_path):
         self.project_path = Path(project_path)
+        # Validate project path exists and is absolute
+        if not self.project_path.exists():
+            raise ValueError(f"Project path does not exist: {project_path}")
+        self.project_path = self.project_path.resolve()
+        
         self.shots_dir = self.project_path / 'shots'
         self.wip_dir = self.shots_dir / 'wip'
         self.latest_images_dir = self.shots_dir / 'latest_images'
@@ -30,6 +35,17 @@ class FileHandler:
 
         # Optional storage service for rclone syncs
         self.storage_service = current_app.config.get('STORAGE_SERVICE') if current_app else None
+
+    def _validate_path_within_project(self, file_path):
+        """Ensure file_path is within the project directory."""
+        try:
+            file_path = Path(file_path).resolve()
+            if not str(file_path).startswith(str(self.project_path)):
+                raise ValueError(f"File path outside project bounds: {file_path}")
+            return file_path
+        except Exception as e:
+            logger.error("Path validation failed: %s", e)
+            raise
 
     def clear_thumbnail_cache(self):
         """Remove all files from the thumbnail cache."""
@@ -59,17 +75,22 @@ class FileHandler:
         if not shot_dir.exists():
             get_shot_manager(self.project_path).create_shot_structure(shot_name)
 
+        # Validate shot directory is within project
+        shot_dir = self._validate_path_within_project(shot_dir)
+
         if file_type in {'image', 'video'}:
             wip_dir = shot_dir / ('images' if file_type == 'image' else 'videos')
             version = self.get_next_version(wip_dir, shot_name, file_ext)
 
             wip_filename = f'{shot_name}_v{version:03d}{file_ext}'
             wip_path = wip_dir / wip_filename
+            wip_path = self._validate_path_within_project(wip_path)
             file.save(str(wip_path))
 
             final_dir = self.latest_images_dir if file_type == 'image' else self.latest_videos_dir
             final_filename = f'{shot_name}{file_ext}'
             final_path = final_dir / final_filename
+            final_path = self._validate_path_within_project(final_path)
 
             for existing_file in final_dir.glob(f'{shot_name}.*'):
                 existing_file.unlink()
@@ -79,13 +100,16 @@ class FileHandler:
             # lipsync driver/target/result
             dest_dir = shot_dir / 'lipsync'
             dest_dir.mkdir(exist_ok=True)
+            dest_dir = self._validate_path_within_project(dest_dir)
             base = f'{shot_name}_{file_type}'
             version = self.get_next_version(dest_dir, base, file_ext)
             wip_filename = f'{base}_v{version:03d}{file_ext}'
             wip_path = dest_dir / wip_filename
+            wip_path = self._validate_path_within_project(wip_path)
             file.save(str(wip_path))
 
             final_path = dest_dir / f'{base}{file_ext}'
+            final_path = self._validate_path_within_project(final_path)
             for existing_file in dest_dir.glob(f'{base}.*'):
                 if existing_file != wip_path:
                     existing_file.unlink()
@@ -95,6 +119,8 @@ class FileHandler:
         thumbnail_path = None
         if file_type == 'image':
             thumbnail_path = self.create_thumbnail(str(final_path), shot_name)
+            if thumbnail_path:
+                thumbnail_path = self._validate_path_within_project(thumbnail_path)
 
         result = {
             'wip_path': str(wip_path),

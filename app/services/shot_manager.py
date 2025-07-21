@@ -127,13 +127,21 @@ class ShotManager:
 
     def get_shots(self):
         """Get all shots in the project."""
-        if not self.wip_dir.exists():
+        # Ensure we're looking at the correct project's wip directory
+        if not self.wip_dir.exists() or not self.project_path.exists():
             return []
 
         shots = []
+        # Only look at directories that are actually shot folders
         for shot_dir in sorted(self.wip_dir.iterdir()):
             if shot_dir.is_dir() and shot_dir.name.startswith('SH'):
-                shots.append(self.get_shot_info(shot_dir.name))
+                try:
+                    shot_info = self.get_shot_info(shot_dir.name)
+                    if shot_info:  # Only add if shot info is valid
+                        shots.append(shot_info)
+                except Exception as e:
+                    logger.warning("Failed to get shot info for %s: %s", shot_dir.name, e)
+                    continue
         return shots
 
     def create_shot_between(self, after_shot=None):
@@ -229,7 +237,27 @@ class ShotManager:
     def get_shot_info(self, shot_name):
         """Get information about a specific shot."""
         validate_shot_name(shot_name)
+        
+        # Ensure we're working within the correct project
+        if not self.project_path.exists():
+            logger.error("Project path does not exist: %s", self.project_path)
+            return None
+            
         shot_dir = self.wip_dir / shot_name
+        
+        # Validate shot directory is within project bounds
+        try:
+            shot_dir = shot_dir.resolve()
+            if not str(shot_dir).startswith(str(self.project_path.resolve())):
+                logger.error("Shot directory outside project bounds: %s", shot_dir)
+                return None
+        except Exception as e:
+            logger.error("Invalid shot directory path: %s", e)
+            return None
+
+        if not shot_dir.exists():
+            logger.warning("Shot directory does not exist: %s", shot_dir)
+            return None
 
         # Load notes
         notes = ''
@@ -302,6 +330,23 @@ class ShotManager:
 
     def _get_latest_asset(self, final_dir, wip_dir, shot_name, extensions):
         """Helper for finding the latest final or highest versioned WIP asset."""
+        # Validate directories are within project bounds
+        try:
+            project_root = self.project_path.resolve()
+            if final_dir and final_dir.exists():
+                final_dir = final_dir.resolve()
+                if not str(final_dir).startswith(str(project_root)):
+                    logger.error("Final directory outside project bounds: %s", final_dir)
+                    return None, 0
+            if wip_dir and wip_dir.exists():
+                wip_dir = wip_dir.resolve()
+                if not str(wip_dir).startswith(str(project_root)):
+                    logger.error("WIP directory outside project bounds: %s", wip_dir)
+                    return None, 0
+        except Exception as e:
+            logger.error("Path validation error: %s", e)
+            return None, 0
+
         latest_final = None
         if final_dir.exists():
             for ext in extensions:
