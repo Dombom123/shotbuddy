@@ -15,3 +15,8 @@ THUMBNAIL_CACHE_DIR = BASE_DIR / "static" / "thumbnails"
 
 # Default thumbnail resolution (width, height)
 THUMBNAIL_SIZE = (240, 180)
+
+# Default root directory where Shotbuddy looks for or creates projects when
+# the user provides a relative path. Override with the SHOTBUDDY_BASE_DIR env
+# variable to keep all projects in a single folder.
+PROJECTS_ROOT = Path(os.environ.get("SHOTBUDDY_BASE_DIR", BASE_DIR))

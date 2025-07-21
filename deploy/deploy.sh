@@ -50,7 +50,14 @@ echo "Step 6: Starting Shotbuddy service..."
 sudo systemctl start shotbuddy
 
 echo ""
-echo "Step 7: Setting up HTTPS with Let's Encrypt..."
+echo "Step 7: Installing & starting real-time Google Drive sync service..."
+sudo cp deploy/shotbuddy-sync.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable shotbuddy-sync
+sudo systemctl start shotbuddy-sync
+
+echo ""
+echo "Step 8: Setting up HTTPS with Let's Encrypt..."
 echo "This will open a browser window for domain verification..."
 sudo certbot --nginx -d shotbuddy.drivebeta.de --non-interactive --agree-tos --email admin@drivebeta.de
 

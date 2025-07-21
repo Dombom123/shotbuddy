@@ -46,7 +46,15 @@ class ProjectManager:
 
     def create_project(self, project_path, project_name):
         from app.utils import sanitize_path
-        project_dir = sanitize_path(project_path).resolve() / project_name
+        from app.config.constants import PROJECTS_ROOT
+
+        base_path = sanitize_path(project_path)
+        if not base_path.is_absolute():
+            base_path = (PROJECTS_ROOT / base_path).resolve()
+        else:
+            base_path = base_path.resolve()
+
+        project_dir = base_path / project_name
         project_dir.mkdir(parents=True, exist_ok=True)
         shots_dir = project_dir / 'shots'
         shots_dir.mkdir(exist_ok=True)

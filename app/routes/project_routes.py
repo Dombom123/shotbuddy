@@ -58,7 +58,18 @@ def open_project():
         if not project_path:
             return jsonify({"success": False, "error": "Project path required"}), 400
         from app.utils import sanitize_path
-        project_path = sanitize_path(project_path).resolve()
+        from app.config.constants import PROJECTS_ROOT
+
+        project_path = sanitize_path(project_path)
+
+        # If the provided path is not absolute, treat it as relative to
+        # PROJECTS_ROOT. This allows users to just type the project folder
+        # name (e.g. "MyFilm") instead of the full path.
+        if not project_path.is_absolute():
+            project_path = (PROJECTS_ROOT / project_path).resolve()
+        else:
+            project_path = project_path.resolve()
+
         path_str = str(project_path)
         project_file = project_path / "project.json"
         shots_dir = project_path / "shots"
