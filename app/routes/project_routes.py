@@ -35,6 +35,22 @@ def get_current_project():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
+@project_bp.route("/api/project/all")
+def get_all_projects():
+    """Return every project.json under PROJECTS_ROOT for full picker."""
+    try:
+        from app.config.constants import PROJECTS_ROOT
+        all_projects = []
+        for project_file in PROJECTS_ROOT.glob("**/project.json"):
+            try:
+                with project_file.open('r') as f:
+                    all_projects.append(json.load(f))
+            except Exception:
+                continue
+        return jsonify({"success": True, "data": all_projects})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
 @project_bp.route("/api/project/recent")
 def get_recent_projects():
     try:

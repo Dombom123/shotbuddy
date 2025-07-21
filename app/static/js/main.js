@@ -94,7 +94,7 @@
                     closeCreateProjectModal();
                     showMainInterface();
                     loadShots();
-                    loadRecentProjects();
+                    loadProjectsList();
                     showNotification(`Created project "${result.data.name}"`);
                 } else {
                     showNotification(result.error || 'Failed to create project', 'error');
@@ -109,7 +109,7 @@
         // Initialize app
         document.addEventListener('DOMContentLoaded', function() {
             checkForProject();
-            loadRecentProjects();
+            loadProjectsList();
         });
 
         async function checkForProject() {
@@ -598,9 +598,9 @@ async function renameShot(oldName, newName) {
     }
 }
 
-        async function loadRecentProjects() {
+        async function loadProjectsList() {
             try {
-                const response = await fetch('/api/project/recent');
+                const response = await fetch('/api/project/all');
                 const result = await response.json();
 
                 if (result.success) {
@@ -649,7 +649,7 @@ async function renameShot(oldName, newName) {
                     }
                 }
             } catch (e) {
-                console.error('Failed to load recent projects', e);
+                console.error('Failed to load projects', e);
             }
         }
 
@@ -665,7 +665,7 @@ async function renameShot(oldName, newName) {
                     currentProject = result.data;
                     showMainInterface();
                     loadShots();
-                    loadRecentProjects();
+                    loadProjectsList();
                     showNotification(`Opened project "${result.data.name}"`);
                 } else {
                     showNotification(result.error || 'Failed to open project', 'error');

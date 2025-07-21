@@ -3,6 +3,7 @@ from flask_cors import CORS
 from app.services.project_manager import ProjectManager
 import logging
 import os
+from pathlib import Path
 
 def create_app():
     app = Flask(__name__, 
@@ -18,6 +19,24 @@ def create_app():
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
     CORS(app)
+
+    # ---------------------------------------------------------------
+    # Configuration validation – ensure required directories exist
+    # ---------------------------------------------------------------
+    from app.config.constants import PROJECTS_ROOT
+    projects_root = Path(PROJECTS_ROOT).expanduser().resolve()
+    try:
+        projects_root.mkdir(parents=True, exist_ok=True)
+    except Exception as exc:
+        logging.critical("Cannot create or access SHOTBUDDY_BASE_DIR (%s): %s", projects_root, exc)
+        raise SystemExit(1)
+
+    upload_root = Path(app.config['UPLOAD_FOLDER']).expanduser().resolve()
+    try:
+        upload_root.mkdir(parents=True, exist_ok=True)
+    except Exception as exc:
+        logging.critical("Cannot create or access SHOTBUDDY_UPLOAD_FOLDER (%s): %s", upload_root, exc)
+        raise SystemExit(1)
 
     # ---------------------------------------------------------------
     # Simple token-based authentication
