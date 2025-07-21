@@ -23,6 +23,7 @@ import threading
 from pathlib import Path
 from typing import Union, BinaryIO, Optional
 import logging
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +47,12 @@ class StorageService:
         # Custom flags passed to every rclone invocation – if not provided use a
         # sane default optimised for many small files.
         self.rclone_flags = rclone_flags or ["--fast-list", "--update"]
+
+        # --- sync status ---
+        self._last_sync_ok: bool | None = None
+        self._last_sync_time: float | None = None
+        self._last_sync_output: str | None = None
+        self._last_sync_error: str | None = None
 
     # ---------------------------------------------------------------------
     # Public API
@@ -103,24 +110,56 @@ class StorageService:
             return
 
         def _run():
+            cmd = [
+                "rclone",
+                "sync",
+                str(self.local_root),
+                f"{self.rclone_remote}",
+                *self.rclone_flags,
+            ]
+            logger.info("[StorageService] rclone sync: %s", " ".join(cmd))
+
             try:
-                cmd = [
-                    "rclone",
-                    "sync",
-                    str(self.local_root),
-                    f"{self.rclone_remote}",
-                    *self.rclone_flags,
-                ]
-                logger.info("[StorageService] rclone sync: %s", " ".join(cmd))
-                subprocess.run(cmd, capture_output=True, check=True, text=True)
-            except subprocess.CalledProcessError as exc:
-                logger.error("rclone sync failed: %s", exc.stderr)
+                result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+                self._last_sync_time = time.time()
+                self._last_sync_output = result.stdout
+                self._last_sync_error = result.stderr if result.returncode else ""
+                self._last_sync_ok = result.returncode == 0
+
+                if not self._last_sync_ok:
+                    logger.error("rclone sync failed (code %s): %s", result.returncode, result.stderr)
+                    # simple retry once after 30s
+                    time.sleep(30)
+                    retry = subprocess.run(cmd, capture_output=True, text=True, check=False)
+                    self._last_sync_time = time.time()
+                    self._last_sync_output = retry.stdout
+                    self._last_sync_error = retry.stderr if retry.returncode else ""
+                    self._last_sync_ok = retry.returncode == 0
+                    if self._last_sync_ok:
+                        logger.info("rclone retry successful")
+                    else:
+                        logger.error("rclone retry failed: %s", retry.stderr)
             except Exception as exc:
+                self._last_sync_ok = False
+                self._last_sync_error = str(exc)
+                self._last_sync_time = time.time()
                 logger.exception("Unexpected error during rclone sync: %s", exc)
 
         # Fire-and-forget background thread so the request returns immediately.
         t = threading.Thread(target=_run, daemon=True)
         t.start()
+
+    # --------------------------------------------------------------
+    # Sync status accessor
+    # --------------------------------------------------------------
+    def get_status(self) -> dict:
+        """Return dict with last rclone sync outcome."""
+        return {
+            "last_sync_ok": self._last_sync_ok,
+            "last_sync_time": self._last_sync_time,
+            "last_sync_output": self._last_sync_output,
+            "last_sync_error": self._last_sync_error,
+        }
 
     # ------------------------------------------------------------------
     # Public helper to allow external callers to manually trigger a sync

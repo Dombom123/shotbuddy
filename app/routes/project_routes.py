@@ -218,3 +218,14 @@ def create_project():
         return jsonify({"success": True, "data": project_info})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
+
+@project_bp.route("/api/sync/status")
+def sync_status():
+    try:
+        from flask import current_app
+        storage = current_app.config.get('STORAGE_SERVICE')
+        if not storage:
+            return jsonify({"success": False, "error": "Storage service missing"}), 500
+        return jsonify({"success": True, "data": storage.get_status()})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
