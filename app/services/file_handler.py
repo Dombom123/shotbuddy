@@ -39,6 +39,9 @@ class FileHandler:
     def _validate_path_within_project(self, file_path):
         """Ensure file_path is within the project directory."""
         try:
+            # Handle both relative and absolute paths
+            if not Path(file_path).is_absolute():
+                file_path = self.project_path / file_path
             file_path = Path(file_path).resolve()
             if not str(file_path).startswith(str(self.project_path)):
                 raise ValueError(f"File path outside project bounds: {file_path}")
@@ -119,8 +122,6 @@ class FileHandler:
         thumbnail_path = None
         if file_type == 'image':
             thumbnail_path = self.create_thumbnail(str(final_path), shot_name)
-            if thumbnail_path:
-                thumbnail_path = self._validate_path_within_project(thumbnail_path)
 
         result = {
             'wip_path': str(wip_path),
