@@ -1,24 +1,14 @@
 from flask import Blueprint, request, jsonify, send_file, current_app
 from pathlib import Path
 import subprocess
-import threading
 import logging
 
 from app.services.shot_manager import get_shot_manager
 from app.services.file_handler import FileHandler
 
-import subprocess
 import platform
 
 shot_bp = Blueprint('shot', __name__)
-
-def sync_to_gdrive_async():
-    """Sync to Google Drive in background thread"""
-    try:
-        subprocess.run(['/home/dominik/shotbuddy/deploy/backup.sh'], 
-                      capture_output=True, text=True, timeout=300)
-    except Exception as e:
-        logging.error(f"Background sync failed: {e}")
 
 @shot_bp.route("/", strict_slashes=False, methods=["GET"])
 def get_shots():
@@ -73,10 +63,7 @@ def upload_file():
         file_handler = FileHandler(project['path'])
         result = file_handler.save_file(file, shot_name, file_type)
 
-        # Trigger background sync to Google Drive
-        sync_thread = threading.Thread(target=sync_to_gdrive_async)
-        sync_thread.daemon = True
-        sync_thread.start()
+        # StorageService will handle async rclone sync internally.
 
         return jsonify({"success": True, "data": result})
     except ValueError as e:
@@ -167,58 +154,3 @@ def serve_thumbnail(filepath):
         return "File not found", 404
     except Exception as e:
         return str(e), 500
-
-@shot_bp.route("/reveal", methods=["POST"])
-def reveal_file():
-    try:
-        data = request.get_json()
-        rel_path = data.get("path")
-        project_manager = current_app.config['PROJECT_MANAGER']
-        project = project_manager.get_current_project()
-        if not project:
-            return jsonify({"success": False, "error": "No current project"}), 400
-
-        file_path = Path(rel_path)
-        if not file_path.is_absolute():
-            file_path = (Path(project["path"]) / file_path).resolve()
-        else:
-            file_path = file_path.resolve()
-
-        if not file_path.exists():
-            return jsonify({"success": False, "error": f"File does not exist: {file_path}"}), 404
-
-        if platform.system() == "Windows":
-            subprocess.Popen(['explorer', '/select,', str(file_path)])
-        elif platform.system() == "Darwin":
-            subprocess.Popen(['open', '-R', str(file_path)])
-        else:
-            subprocess.Popen(['xdg-open', str(file_path.parent)])
-
-        return jsonify({"success": True})
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
-
-
-@shot_bp.route("/open-folder", methods=["POST"])
-def open_shots_folder():
-    """Open the current project's shots folder in the file browser."""
-    try:
-        project_manager = current_app.config['PROJECT_MANAGER']
-        project = project_manager.get_current_project()
-        if not project:
-            return jsonify({"success": False, "error": "No current project"}), 400
-
-        shots_path = Path(project["path"]) / "shots"
-        if not shots_path.exists():
-            return jsonify({"success": False, "error": "Shots folder missing"}), 404
-
-        if platform.system() == "Windows":
-            subprocess.Popen(["explorer", str(shots_path)])
-        elif platform.system() == "Darwin":
-            subprocess.Popen(["open", str(shots_path)])
-        else:
-            subprocess.Popen(["xdg-open", str(shots_path)])
-
-        return jsonify({"success": True})
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500

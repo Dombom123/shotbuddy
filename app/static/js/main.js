@@ -5,6 +5,27 @@
         const NEW_SHOT_DROP_TEXT = 'Drop an asset here to create a new shot.';
         document.documentElement.style.setProperty('--new-shot-drop-text', `'${NEW_SHOT_DROP_TEXT}'`);
 
+        // ---------------------------------------------------------------------------
+        //  Simple token auth – prompt once and attach to every fetch request
+        // ---------------------------------------------------------------------------
+
+        const API_TOKEN = (function() {
+            const saved = localStorage.getItem('shotbuddy_token');
+            if (saved) return saved;
+            const token = prompt('Enter Shotbuddy access token');
+            if (token) localStorage.setItem('shotbuddy_token', token);
+            return token || '';
+        })();
+
+        const _origFetch = window.fetch.bind(window);
+        window.fetch = function(url, options = {}) {
+            options.headers = options.headers || {};
+            if (API_TOKEN) {
+                options.headers['Authorization'] = `Bearer ${API_TOKEN}`;
+            }
+            return _origFetch(url, options);
+        };
+
         // Menu functions
 
         async function loadProjectFromManualPath() {
@@ -40,7 +61,7 @@
         }
 
         function openCreateProjectModal() {
-            const basePath = document.getElementById('manual-path-input').value.trim();
+            // Simply open the modal – path is fixed server-side now
             document.getElementById('new-project-name').value = '';
             document.getElementById('create-project-modal').style.display = 'flex';
             document.getElementById('new-project-name').focus();
@@ -51,7 +72,6 @@
         }
 
         async function confirmCreateProject() {
-            const basePath = document.getElementById('manual-path-input').value.trim();
             const projectName = document.getElementById('new-project-name').value.trim();
 
             // basePath may be empty; that's okay now
@@ -64,7 +84,7 @@
                 const response = await fetch('/api/project/create', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ path: basePath, name: projectName })
+                    body: JSON.stringify({ path: '', name: projectName })
                 });
 
                 const result = await response.json();
@@ -252,8 +272,7 @@
                          ondragleave="handleDragLeave(event)">
                         <div class="file-preview">
                             <div class="preview-thumbnail ${type === 'video' ? 'video-thumbnail' : ''}"
-                                style="${thumbnailStyle}"
-                                onclick="revealFile('${file.file}')"></div>
+                                style="${thumbnailStyle}"></div>
 
                             <div class="version-badge">v${String(file.version).padStart(3, '0')}</div>
                         </div>
@@ -289,7 +308,7 @@
                     html += `
                         <div class="drop-zone lipsync-drop" ondragover="handleDragOver(event, '${part}')" ondrop="handleDrop(event, '${shot.name}', '${part}')" ondragleave="handleDragLeave(event)">
                             <div class="file-preview lipsync-preview">
-                                <div class="preview-thumbnail lipsync-thumbnail" data-label="${label}" style="${thumbnailStyle}" onclick="revealFile('${file.file}')"></div>
+                                <div class="preview-thumbnail lipsync-thumbnail" data-label="${label}" style="${thumbnailStyle}"></div>
                                 <div class="version-badge">v${String(file.version).padStart(3, '0')}</div>
                             </div>
                         </div>`;
@@ -575,42 +594,6 @@ async function renameShot(oldName, newName) {
     } catch (error) {
         console.error('Rename failed:', error);
         showNotification('Rename failed', 'error');
-    }
-}
-
-async function revealFile(relPath) {
-            try {
-                const response = await fetch('/api/shots/reveal', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ path: relPath })
-                });
-                const result = await response.json();
-                if (!result.success) {
-                    showNotification(result.error || 'Failed to reveal file', 'error');
-                }
-            } catch (e) {
-                console.error("Reveal failed:", e);
-                showNotification('Reveal failed', 'error');
-    }
-}
-
-async function openShotsFolder() {
-    if (!currentProject) {
-        showNotification('No project open', 'error');
-        return;
-    }
-    try {
-        const response = await fetch('/api/shots/open-folder', {
-            method: 'POST'
-        });
-        const result = await response.json();
-        if (!result.success) {
-            showNotification(result.error || 'Failed to open folder', 'error');
-        }
-    } catch (e) {
-        console.error('Open folder failed:', e);
-        showNotification('Failed to open folder', 'error');
     }
 }
 

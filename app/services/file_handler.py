@@ -2,6 +2,7 @@ from pathlib import Path
 import shutil
 from PIL import Image
 import logging
+from flask import current_app
 
 logger = logging.getLogger(__name__)
 from app.services.shot_manager import get_shot_manager
@@ -26,6 +27,9 @@ class FileHandler:
         self.wip_dir.mkdir(parents=True, exist_ok=True)
         self.latest_images_dir.mkdir(parents=True, exist_ok=True)
         self.latest_videos_dir.mkdir(parents=True, exist_ok=True)
+
+        # Optional storage service for rclone syncs
+        self.storage_service = current_app.config.get('STORAGE_SERVICE') if current_app else None
 
     def clear_thumbnail_cache(self):
         """Remove all files from the thumbnail cache."""
@@ -92,12 +96,18 @@ class FileHandler:
         if file_type == 'image':
             thumbnail_path = self.create_thumbnail(str(final_path), shot_name)
 
-        return {
+        result = {
             'wip_path': str(wip_path),
             'final_path': str(final_path),
             'version': version,
             'thumbnail': f"static/thumbnails/{Path(thumbnail_path).name}" if thumbnail_path else None
         }
+
+        # Trigger remote sync (fire-and-forget)
+        if self.storage_service:
+            self.storage_service.trigger_sync()
+
+        return result
 
     def get_next_version(self, wip_dir, shot_name, file_ext):
         if not wip_dir.exists():

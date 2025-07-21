@@ -40,11 +40,31 @@ def get_recent_projects():
     try:
         project_manager = current_app.config['PROJECT_MANAGER']
         recent_projects = []
-        for project_path in project_manager.projects.get('recent_projects', []):
+        stored = project_manager.projects.get('recent_projects', [])
+
+        # If no stored recent projects, discover ones under PROJECTS_ROOT
+        if not stored:
+            from app.config.constants import PROJECTS_ROOT
+            for project_file in PROJECTS_ROOT.glob('**/project.json'):
+                stored.append(str(project_file.parent))
+
+        # Deduplicate while preserving order
+        seen = set()
+        unique_paths = []
+        for p in stored:
+            if p not in seen:
+                unique_paths.append(p)
+                seen.add(p)
+
+        # Build response list
+        for project_path in unique_paths:
             project_file = Path(project_path) / 'project.json'
             if project_file.exists():
-                with project_file.open('r') as f:
-                    recent_projects.append(json.load(f))
+                try:
+                    with project_file.open('r') as f:
+                        recent_projects.append(json.load(f))
+                except Exception:
+                    continue
         return jsonify({"success": True, "data": recent_projects})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
