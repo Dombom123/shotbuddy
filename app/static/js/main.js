@@ -604,7 +604,10 @@ async function renameShot(oldName, newName) {
 
                 if (result.success) {
                     const list = document.getElementById('recent-projects-list');
+                    const selector = document.getElementById('project-selector');
+
                     list.innerHTML = '';
+                    selector.innerHTML = '';
 
                     if (result.data.length === 0) {
                         const li = document.createElement('li');
@@ -624,7 +627,25 @@ async function renameShot(oldName, newName) {
                             openRecentProject(project.path);
                         });
                         list.appendChild(li);
+
+                        // selector option
+                        const option = document.createElement('option');
+                        option.value = project.path;
+                        option.textContent = project.name;
+                        if (currentProject && currentProject.path === project.path) {
+                            option.selected = true;
+                        }
+                        selector.appendChild(option);
                     });
+
+                    // Show selector when we have at least one project
+                    if (result.data.length > 0) {
+                        selector.style.display = 'block';
+                        selector.onchange = function() {
+                            const path = selector.value;
+                            if (path) openRecentProject(path);
+                        };
+                    }
                 }
             } catch (e) {
                 console.error('Failed to load recent projects', e);
