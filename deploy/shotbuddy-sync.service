@@ -1,0 +1,18 @@
+[Unit]
+Description=Shotbuddy Real-time Google Drive Sync
+After=network.target shotbuddy.service
+Wants=shotbuddy.service
+
+[Service]
+Type=simple
+User=dominik
+Group=dominik
+WorkingDirectory=/home/dominik/shotbuddy
+ExecStart=/home/dominik/shotbuddy/deploy/realtime_sync.sh
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target 
