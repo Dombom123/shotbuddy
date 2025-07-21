@@ -11,9 +11,9 @@
             const input = document.getElementById('manual-path-input');
             const path = input.value.trim();
 
+            // path may be empty if user wants default root; show hint if both input and list unused
             if (!path) {
-                showNotification("Please enter a full path to a project folder.", "error");
-                return;
+                showNotification("Opening recent project or using default path...");
             }
 
             try {
@@ -41,10 +41,6 @@
 
         function openCreateProjectModal() {
             const basePath = document.getElementById('manual-path-input').value.trim();
-            if (!basePath) {
-                showNotification("Please enter a full path to a project folder.", "error");
-                return;
-            }
             document.getElementById('new-project-name').value = '';
             document.getElementById('create-project-modal').style.display = 'flex';
             document.getElementById('new-project-name').focus();
@@ -58,10 +54,7 @@
             const basePath = document.getElementById('manual-path-input').value.trim();
             const projectName = document.getElementById('new-project-name').value.trim();
 
-            if (!basePath) {
-                showNotification("Please enter a full path to a project folder.", "error");
-                return;
-            }
+            // basePath may be empty; that's okay now
             if (!projectName) {
                 showNotification("Please enter a project name.", "error");
                 return;
@@ -95,6 +88,7 @@
         // Initialize app
         document.addEventListener('DOMContentLoaded', function() {
             checkForProject();
+            loadRecentProjects();
         });
 
         async function checkForProject() {
@@ -619,3 +613,59 @@ async function openShotsFolder() {
         showNotification('Failed to open folder', 'error');
     }
 }
+
+        async function loadRecentProjects() {
+            try {
+                const response = await fetch('/api/project/recent');
+                const result = await response.json();
+
+                if (result.success) {
+                    const list = document.getElementById('recent-projects-list');
+                    list.innerHTML = '';
+
+                    if (result.data.length === 0) {
+                        const li = document.createElement('li');
+                        li.textContent = 'No recent projects.';
+                        li.style.color = '#808080';
+                        list.appendChild(li);
+                        return;
+                    }
+
+                    result.data.forEach(project => {
+                        const li = document.createElement('li');
+                        li.className = 'recent-project-item';
+                        li.style.cursor = 'pointer';
+                        li.style.padding = '6px 0';
+                        li.textContent = project.name;
+                        li.addEventListener('click', () => {
+                            openRecentProject(project.path);
+                        });
+                        list.appendChild(li);
+                    });
+                }
+            } catch (e) {
+                console.error('Failed to load recent projects', e);
+            }
+        }
+
+        async function openRecentProject(projectPath) {
+            try {
+                const response = await fetch('/api/project/open', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path: projectPath })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    currentProject = result.data;
+                    showMainInterface();
+                    loadShots();
+                    showNotification(`Opened project "${result.data.name}"`);
+                } else {
+                    showNotification(result.error || 'Failed to open project', 'error');
+                }
+            } catch (e) {
+                console.error('Failed to open project', e);
+                showNotification('Failed to open project', 'error');
+            }
+        }
